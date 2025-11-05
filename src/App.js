@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Routes, Route, useSearchParams } from "react-router-dom";
+import { Routes, Route, useNavigate, useSearchParams } from "react-router-dom";
 
 const API_BASE = "https://hightools-backend-production.up.railway.app";
 
@@ -21,10 +21,10 @@ function useGoogleFont(fontFamily) {
 
 /* ===================== Dashboard ===================== */
 function Dashboard() {
+  const navigate = useNavigate();
   const [username, setUsername] = useState(localStorage.getItem("hc_username") || "hyghman");
   const [color, setColor] = useState(localStorage.getItem("hc_color") || "#ffffff");
   const [font, setFont] = useState(localStorage.getItem("hc_font") || "Poppins");
-  const [goalEnabled, setGoalEnabled] = useState(localStorage.getItem("hc_goal_enabled") === "true");
   const [goal, setGoal] = useState(localStorage.getItem("hc_goal") || 100);
   const [theme, setTheme] = useState(localStorage.getItem("hc_theme") || "dark");
 
@@ -56,15 +56,14 @@ function Dashboard() {
     localStorage.setItem("hc_color", color);
     localStorage.setItem("hc_font", font);
     localStorage.setItem("hc_goal", goal);
-    localStorage.setItem("hc_goal_enabled", goalEnabled);
-  }, [username, color, font, goal, goalEnabled]);
+  }, [username, color, font, goal]);
 
   const openOverlay = () => {
     const params = new URLSearchParams({
       user: username.trim(),
       color,
       font,
-      goal: goalEnabled ? goal : 0,
+      goal,
     }).toString();
     window.open(`/overlay?${params}`, "_blank");
   };
@@ -89,6 +88,7 @@ function Dashboard() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="ex: hyghman"
+            spellCheck="false"
           />
         </div>
 
@@ -104,6 +104,7 @@ function Dashboard() {
             className="hex"
             value={color}
             onChange={(e) => setColor(e.target.value)}
+            spellCheck="false"
           />
         </div>
 
@@ -115,41 +116,28 @@ function Dashboard() {
             onChange={(e) => setFont(e.target.value)}
           >
             {fonts.map((f) => (
-              <option key={f} value={f} style={{ fontFamily: f }}>
+              <option key={f} value={f}>
                 {f}
               </option>
             ))}
           </select>
 
+          {/* 🔥 Font Preview box */}
           <div className="font-preview" style={{ fontFamily: font }}>
             AaBbCc — Font Preview ({font})
           </div>
         </div>
 
         <div className="row">
-          <label>Use Follow Goal?</label>
-          <select
-            className="select"
-            value={goalEnabled ? "yes" : "no"}
-            onChange={(e) => setGoalEnabled(e.target.value === "yes")}
-          >
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
+          <label>Follow Goal</label>
+          <input
+            className="inp"
+            type="number"
+            min="1"
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+          />
         </div>
-
-        {goalEnabled && (
-          <div className="row">
-            <label>Follow Goal</label>
-            <input
-              className="inp"
-              type="number"
-              min="1"
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-            />
-          </div>
-        )}
 
         <button className="cta" onClick={openOverlay}>
           Open OBS Overlay
@@ -175,8 +163,7 @@ function Dashboard() {
           src="https://cdn.7tv.app/emote/01GR4G94K00003C5VKDM5EYK9S/4x.avif"
           alt="emote"
           className="emote"
-        />{" "}
-        | not affiliated with Kick.com
+        />
       </footer>
     </div>
   );
@@ -188,7 +175,7 @@ function Overlay() {
   const username = (params.get("user") || "hyghman").trim();
   const color = params.get("color") || "#FFFFFF";
   const font = params.get("font") || "Poppins";
-  const goal = parseInt(params.get("goal") || "0", 10);
+  const goal = parseInt(params.get("goal") || "100", 10);
 
   const [count, setCount] = useState(0);
   const [animate, setAnimate] = useState(false);
@@ -196,6 +183,7 @@ function Overlay() {
 
   useGoogleFont(font);
 
+  // animate number change (also triggers bottom-to-top pop)
   const animateTo = (from, to, duration = 800) => {
     const start = performance.now();
     setAnimate(true);
@@ -221,7 +209,7 @@ function Overlay() {
         lastCountRef.current = newCount;
       }
     } catch {
-      // silent fail
+      // silent on overlay
     }
   };
 
@@ -236,33 +224,31 @@ function Overlay() {
     return () => clearInterval(id);
   }, [username]);
 
-  const progress = goal > 0 ? Math.min(100, (count / goal) * 100).toFixed(1) : 0;
+  const progress = Math.min(100, (count / goal) * 100).toFixed(1);
 
   return (
     <div className="page page--overlay clean">
       <div
         className={`overlay-count ${animate ? "popUp" : ""}`}
         style={{
-          color: color,
-          fontFamily: font,
+          color: "var(--overlay-color)",
+          fontFamily: "var(--overlay-font)",
         }}
       >
         {count.toLocaleString()}
       </div>
 
-      {goal > 0 && (
-        <div className="goal-container">
-          <div className="goal-text">
-            {count} / {goal} followers ({progress}%)
-          </div>
-          <div className="goal-bar">
-            <div
-              className="goal-fill"
-              style={{ width: `${progress}%`, background: color }}
-            />
-          </div>
+      <div className="goal-container">
+        <div className="goal-text">
+          {count} / {goal} followers ({progress}%)
         </div>
-      )}
+        <div className="goal-bar">
+          <div
+            className="goal-fill"
+            style={{ width: `${progress}%`, background: color }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

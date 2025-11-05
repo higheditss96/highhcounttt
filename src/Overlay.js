@@ -2,23 +2,26 @@ import React, { useEffect, useRef, useState } from "react";
 import "./App.css";
 
 export default function Overlay() {
-  const [followers, setFollowers] = useState(97); // exemplu inițial
-  const [goal, setGoal] = useState(100);
+  const [followers, setFollowers] = useState(245);
+  const [goal, setGoal] = useState(300);
+  const [goalEnabled, setGoalEnabled] = useState(true);
+  const [prevFollowers, setPrevFollowers] = useState(followers);
   const [goalReached, setGoalReached] = useState(false);
-  const [prevFollowers, setPrevFollowers] = useState(97);
   const goalRef = useRef(null);
 
-  // Simulare pentru test (auto-update random)
+  // Simulare modificare follower count (test vizual)
   useEffect(() => {
     const interval = setInterval(() => {
-      const random = Math.random() > 0.5 ? 1 : -1;
-      setPrevFollowers(followers);
-      setFollowers((prev) => Math.max(0, prev + random));
-    }, 3000);
+      const change = Math.random() > 0.6 ? 1 : Math.random() > 0.8 ? -1 : 0;
+      if (change !== 0) {
+        setPrevFollowers(followers);
+        setFollowers((prev) => Math.max(0, prev + change));
+      }
+    }, 3500);
     return () => clearInterval(interval);
   }, [followers]);
 
-  // Pulse verde/roșu + confetti când se atinge goal-ul
+  // Pulse & goal logic
   useEffect(() => {
     if (!goalRef.current) return;
 
@@ -33,47 +36,68 @@ export default function Overlay() {
     if (followers >= goal && !goalReached) {
       setGoalReached(true);
       goalRef.current.classList.add("complete");
-      launchConfetti();
+      setTimeout(() => goalRef.current.classList.remove("complete"), 800);
+    } else if (followers < goal && goalReached) {
+      setGoalReached(false);
     }
   }, [followers]);
-
-  const launchConfetti = () => {
-    const container = document.createElement("div");
-    container.classList.add("confetti");
-    document.body.appendChild(container);
-
-    for (let i = 0; i < 80; i++) {
-      const piece = document.createElement("div");
-      piece.classList.add("confetti-piece");
-      piece.style.left = Math.random() * 100 + "vw";
-      piece.style.backgroundColor = `hsl(${Math.random() * 360}, 70%, 60%)`;
-      piece.style.animationDelay = Math.random() * 1 + "s";
-      container.appendChild(piece);
-    }
-
-    setTimeout(() => container.remove(), 4000);
-  };
 
   const progress = Math.min((followers / goal) * 100, 100);
 
   return (
     <div className="page page--overlay clean">
+      {/* === Follower count box === */}
       <div className="overlay-box with-box">
         <div className="overlay-count">{followers}</div>
       </div>
 
-      <div className="goal-container">
-        <div className="goal-text">
-          {followers} / {goal} followers
+      {/* === Goal Control === */}
+      <div
+        className="panel glass"
+        style={{
+          marginTop: "20px",
+          width: "300px",
+          padding: "1rem",
+          fontSize: "0.9rem",
+        }}
+      >
+        <div className="row">
+          <label>Show Goal:</label>
+          <input
+            type="checkbox"
+            checked={goalEnabled}
+            onChange={() => setGoalEnabled(!goalEnabled)}
+          />
         </div>
-        <div className="goal-bar">
-          <div
-            className="goal-fill"
-            ref={goalRef}
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
+
+        {goalEnabled && (
+          <div className="row">
+            <label>Goal Value:</label>
+            <input
+              type="number"
+              className="inp"
+              value={goal}
+              onChange={(e) => setGoal(parseInt(e.target.value || 0))}
+            />
+          </div>
+        )}
       </div>
+
+      {/* === Goal bar === */}
+      {goalEnabled && (
+        <div className="goal-container">
+          <div className="goal-text">
+            {followers} / {goal} followers
+          </div>
+          <div className="goal-bar">
+            <div
+              className="goal-fill"
+              ref={goalRef}
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
